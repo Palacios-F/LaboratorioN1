@@ -110,9 +110,20 @@ def active(prices:"dataframe with prices", weights:"vector with weights",rendi_d
     df_titulos['comision_acum'] = df_titulos['comision'].cumsum()
     return out,df_titulos
 
+def medidas(active: "vector with rend active", pasive:"vector with rend pasive",sharpe_p,sharpe_a):
+    prom_act = ((1+active.rend/100).cumprod()[-1])^(1/len(active))-1
+    prom_pas = ((1+pasive.rend/100).cumprod()[-1])^(1/len(active))-1
+    prom_act_c = ((1+active.rend/100).cumprod()[-1])-1
+    prom_pas_c = ((1+pasive.rend/100).cumprod()[-1])-1
+    sal = pd.DataFrame({'medida':['rend_m','rend_c','sharpe'],
+                        'descripción':['Rendimiento Promedio Mensual','Rendimiento mensual acumulado','Sharpe Ratio'],
+                        'inv_activa':[prom_act,prom_act_c,sharpe_a],
+                        'inv_pasiva':[prom_pas,prom_pas_c,sharpe_p]})
+    return sal
 
 varianza = lambda w, Sigma: w.T.dot(Sigma).dot(w)
 Sharpe = lambda er, s, rf: (er-rf)/s
 rendimiento = lambda w, r: w.dot(r)
 rs = lambda w,Eind,rf,Sigma: -(rendimiento(w,Eind)-rf)/ varianza(w,Sigma)**0.5
 comission = lambda securitie,price: securitie*price*0.00125
+

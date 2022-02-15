@@ -25,6 +25,6 @@ print(results_active)
 print("la tabla con los movimientos de los títulos es la siguiente: ")
 print(table_T)
 #%%
-#vs.pie_com(example)
-#vs.returns_plot(results_pasive)
+vs.pie_com(example)
+vs.returns_plot(results_pasive)
 
