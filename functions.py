@@ -36,9 +36,7 @@ def pasive(prices:"dataframe with prices", weights:"vector with weights", cash:"
     Function that calculates the pasive investment, take 4 inputs and returns a table with the result of the investment
     """
     cash_weights = (initial_capital)*weights #amount of money to be used in every commoditie
-    print(cash_weights, cash_weights.sum())
     n_sec = (cash_weights/prices.iloc[0,:]).round(0) #Number of titles
-    print(n_sec)
     cash = cash-sum([comission(n_sec[i],prices.iloc[0,i]) for i in range(len(n_sec))]) # cash after comssions
     amount = [(n_sec.to_numpy()).dot(prices.iloc[i,:].to_numpy()) for i in range(len(prices))]
     out = pd.DataFrame(index = prices.index,columns= ['Capital'],data = amount)
@@ -55,41 +53,42 @@ def active(prices:"dataframe with prices", weights:"vector with weights",rendi_d
     """
     Function that calculates the pasive investment, take 4 inputs and returns a table with the result of the investment
     """
-    cash = capital
+    ##### calculations of the initial positions
+    cash = capital # cash to use in purchases
     n_sec = np.zeros(len(weights)) #vector with number of securities
     com = 0 # commision quantity
-    positions = rendi_d.T.loc[weights.index.to_list(),:].iloc[:,12].sort_values( ascending = False)
-    order = [rendi_d.T.loc[weights.index.to_list(),:].index.get_loc(positions.index[i]) for i in range(len(positions))]
-    n_weights = weights.sort_index().iloc[:,0].to_numpy()/100
+    positions = rendi_d.T.loc[weights.index.to_list(),:].iloc[:,12].sort_values( ascending = False)#vector with daily returns sorted descending base on previous day 
+    order = [rendi_d.T.loc[weights.index.to_list(),:].index.get_loc(positions.index[i]) for i in range(len(positions))]#list with index of securities based on daily returns 
+    n_weights = weights.sort_index().iloc[:,0].to_numpy()/100 # vector with portfolio weights
     for posi in order:
         if (cash > 0) and (np.floor((capital*n_weights[posi]/prices.iloc[13,posi]))*prices.iloc[13,posi] < cash):
             n_sec[posi]=(np.floor((capital*n_weights[posi]/prices.iloc[13,posi])))
             cash = cash -1.00125*np.floor((capital*n_weights[posi]/prices.iloc[13,posi]))*prices.iloc[13,posi]
             com += comission(np.floor((capital*n_weights[posi]/prices.iloc[13,posi])),prices.iloc[13,posi])
-        else:
+        else: # case were there its no cash to cover all the positions 
             n_sec[posi]=(np.floor((0.99875*cash/prices.iloc[13,posi])))
             cash = cash -1.00125*np.floor((0.99875*cash/prices.iloc[13,posi]))*prices.iloc[13,posi]
             com += comission(np.floor((0.99875*cash/prices.iloc[13,posi])),prices.iloc[13,posi])
     
-    
-    returns = np.log(prices/prices.shift(1)).dropna()
-    wei = [n_sec]
-    titles = [n_sec.sum()]
-    commi = [com]
+    ######## Calculations for the new portfolio weights
+    returns = np.log(prices/prices.shift(1)).dropna() # dataframe with montly returns to determine the securitie to hold, seld or buy 
+    wei = [n_sec]# list with positions 
+    titles = [n_sec.sum()] # list with the total number of securities buy it per month
+    commi = [com] # list with the total comission per month
     for i in range(12,len(returns)-1):
-            sales = returns.columns[returns.iloc[i,:]< -1*thereshold]
-            index_sales = [returns.columns.get_loc(stock) for stock in sales]
+            sales = returns.columns[returns.iloc[i,:]< -1*thereshold]# securities that must be sold 
+            index_sales = [returns.columns.get_loc(stock) for stock in sales]# index of securities to sold
             new_weights = np.zeros(len(n_weights))
             for j in index_sales:
                 new_weights[j] = -np.floor(n_sec[j]*0.025)
                 cash +=  np.floor(n_sec[j]*0.025)*prices.iloc[i+2,j]
-                purchase = returns.columns[returns.iloc[i,:] > thereshold]
-                index_purchase = [returns.columns.get_loc(stock) for stock in purchase]
-                positions = rendi_d.T.loc[weights.index.to_list(),:].iloc[:,i+1].sort_values( ascending = False)
-                order = [rendi_d.T.loc[weights.index.to_list(),:].index.get_loc(positions.index[ors]) for ors in range(len(positions))]
-                purchase_order = [w for w in order if w  in index_purchase]
-                nn_titles = 0
-                com = 0
+            purchase = returns.columns[returns.iloc[i,:] > thereshold] # securities that must be buy
+            index_purchase = [returns.columns.get_loc(stock) for stock in purchase]# index of securities to buy
+            positions = rendi_d.T.loc[weights.index.to_list(),:].iloc[:,i+1].sort_values( ascending = False)
+            order = [rendi_d.T.loc[weights.index.to_list(),:].index.get_loc(positions.index[ors]) for ors in range(len(positions))]
+            purchase_order = [w for w in order if w  in index_purchase]
+            nn_titles = 0#number of titles bought
+            com = 0 #payed comissions 
             for j in purchase_order:
                 if (cash > 0) and (np.floor(n_sec[j]*0.025)*prices.iloc[i+2,j] < cash):
                       new_weights[j] = np.floor(n_sec[j]*0.025)
@@ -102,11 +101,11 @@ def active(prices:"dataframe with prices", weights:"vector with weights",rendi_d
                       cash += -np.floor(cash/prices.iloc[i+2,j])*prices.iloc[i+2,j]-comission(np.floor(cash/prices.iloc[i+2,j]),prices.iloc[i+2,j])
                       com += comission(np.floor(cash/prices.iloc[i+2,j]),prices.iloc[i+2,j])
             titles.append(nn_titles)
-            commi.append(com)
-            n_sec = n_sec + new_weights
+            commi.append(com)#month commisions 
+            n_sec = n_sec + new_weights#new positions
             wei.append(n_sec)
-    out = pd.DataFrame(index = prices.index[13:], data = np.multiply(np.array(wei),np.array(prices[13:])).sum(axis=1), columns = ['capital'])
-    df_titulos = pd.DataFrame(index = prices.index[13:],data={'titulos_comprados':titles,'comision':commi})
+    out = pd.DataFrame(index = prices.index[13:], data = np.multiply(np.array(wei),np.array(prices[13:])).sum(axis=1), columns = ['Capital'])#dataframe with portfolio's value
+    df_titulos = pd.DataFrame(index = prices.index[13:],data={'titulos_comprados':titles,'comision':commi})#dataframe with commisions and number of securities
     df_titulos['titulos_totales'] = df_titulos['titulos_comprados'].cumsum()
     df_titulos['comision_acum'] = df_titulos['comision'].cumsum()
     return out,df_titulos
@@ -115,5 +114,5 @@ def active(prices:"dataframe with prices", weights:"vector with weights",rendi_d
 varianza = lambda w, Sigma: w.T.dot(Sigma).dot(w)
 Sharpe = lambda er, s, rf: (er-rf)/s
 rendimiento = lambda w, r: w.dot(r)
-
+rs = lambda w,Eind,rf,Sigma: -(rendimiento(w,Eind)-rf)/ varianza(w,Sigma)**0.5
 comission = lambda securitie,price: securitie*price*0.00125
